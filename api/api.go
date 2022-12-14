@@ -172,3 +172,9 @@ func DownloadVupJson() {
 	fileName := "data/vup.json"
 	downloadFile(getUrl, fileName)
 }
+
+func DownloadFont() {
+	getUrl := "https://git.fishze.top/https://raw.githubusercontent.com/adobe-fonts/source-han-sans/release/Variable/TTF/SourceHanSansSC-VF.ttf"
+	fileName := "data/font/SourceHanSansSC-VF.ttf"
+	downloadFile(getUrl, fileName)
+}

@@ -2,6 +2,7 @@ package picMaker
 
 import (
 	"Go-DDQuery/account"
+	"Go-DDQuery/api"
 	"bufio"
 	"github.com/golang/freetype"
 	"github.com/nfnt/resize"
@@ -61,7 +62,7 @@ func pasteFace(user account.User, img *image.RGBA) {
 
 func savePic(user account.User, img *image.RGBA) string {
 	route := "data/out/" + strconv.FormatInt(user.UID, 10) + ".png"
-	if !pathExists(route) {
+	if !pathExists("data/out") {
 		err := os.Mkdir("data/out", 0777)
 		if err != nil {
 			return ""
@@ -90,7 +91,16 @@ func savePic(user account.User, img *image.RGBA) string {
 }
 
 func writeText(size float64, x, y int, text string, img *image.RGBA) {
-	fontBytes, err := os.ReadFile("./data/font/msyh.ttf")
+	if !pathExists("data/font/SourceHanSansSC-VF.ttf") {
+		if !pathExists("data/font") {
+			err := os.Mkdir("data/font", 0777)
+			if err != nil {
+				return
+			}
+		}
+		api.DownloadFont()
+	}
+	fontBytes, err := os.ReadFile("./data/font/SourceHanSansSC-VF.ttf")
 	if err != nil {
 		panic(err)
 	}
@@ -98,6 +108,7 @@ func writeText(size float64, x, y int, text string, img *image.RGBA) {
 	if err != nil {
 		panic(err)
 	}
+
 	f := freetype.NewContext()
 	f.SetDPI(100)
 	f.SetFont(font)
