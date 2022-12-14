@@ -97,7 +97,7 @@ type JsonUserInfo struct {
 		Sign        string  `json:"sign"`
 		Description string  `json:"description"`
 		Article     int     `json:"article"`
-		Attentions  []int   `json:"attentions"`
+		Attentions  []int64 `json:"attentions"`
 		Fans        int     `json:"fans"`
 		Friend      int     `json:"friend"`
 		Attention   int     `json:"attention"`
