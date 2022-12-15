@@ -1,4 +1,4 @@
-module Go-DDQuery
+module github.com/FishZe/Go-DDQuery
 
 go 1.19
 
