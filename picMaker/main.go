@@ -13,6 +13,7 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	_ "image/png"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -50,7 +51,8 @@ func initPic(user account.User) (*image.RGBA, int, int) {
 func pasteFace(user account.User, img *image.RGBA) {
 	f, err := os.Open(user.FaceFile)
 	if err != nil {
-		panic(err)
+		log.Printf("打开头像文件失败: %v", err)
+		return
 	}
 	face, _, err := image.Decode(f)
 	if err != nil {
@@ -60,34 +62,32 @@ func pasteFace(user account.User, img *image.RGBA) {
 	draw.Draw(img, image.Rect(50, 50, 250, 250), resizeFace, image.Point{}, draw.Src)
 }
 
-func savePic(user account.User, img *image.RGBA) string {
+func savePic(user account.User, img *image.RGBA) (string, error) {
 	route := "data/out/" + strconv.FormatInt(user.UID, 10) + ".png"
 	if !pathExists("data/out") {
 		err := os.Mkdir("data/out", 0777)
 		if err != nil {
-			return ""
+			return "", err
 		}
 	}
 	out, err := os.Create(route)
 	defer func(out *os.File) {
 		err := out.Close()
 		if err != nil {
-			panic(err)
+			log.Printf("关闭文件失败: %v", err)
 		}
 	}(out)
-	if err != nil {
-		panic(err)
-	}
 	b := bufio.NewWriter(out)
 	err = png.Encode(b, img)
 	if err != nil {
-		panic(err)
+		log.Printf("保存图片失败: %v", err)
+		return "", err
 	}
 	err = b.Flush()
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return route
+	return route, nil
 }
 
 func writeText(size float64, x, y int, text string, img *image.RGBA) {
@@ -102,11 +102,13 @@ func writeText(size float64, x, y int, text string, img *image.RGBA) {
 	}
 	fontBytes, err := os.ReadFile("./data/font/SourceHanSansSC-VF.ttf")
 	if err != nil {
-		panic(err)
+		log.Printf("读取字体文件失败: %v", err)
+		return
 	}
 	font, err := freetype.ParseFont(fontBytes)
 	if err != nil {
-		panic(err)
+		log.Printf("解析字体文件失败: %v", err)
+		return
 	}
 
 	f := freetype.NewContext()
@@ -119,7 +121,8 @@ func writeText(size float64, x, y int, text string, img *image.RGBA) {
 	pt := freetype.Pt(x, y)
 	_, err = f.DrawString(text, pt)
 	if err != nil {
-		panic(err)
+		log.Printf("写入文字失败: %v", err)
+		return
 	}
 }
 
@@ -144,10 +147,15 @@ func writeAttention(user account.User, colum int, img *image.RGBA) {
 	}
 }
 
-func MkPic(user account.User) string {
+func MkPic(user account.User) (string, error) {
 	img, colum, height := initPic(user)
 	pasteFace(user, img)
 	writeUserInfo(user, img, height)
 	writeAttention(user, colum, img)
-	return savePic(user, img)
+	route, err := savePic(user, img)
+	if err != nil {
+		log.Printf("保存图片失败: %v", err)
+		return "", err
+	}
+	return route, nil
 }

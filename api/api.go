@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -23,10 +24,10 @@ func pathExists(path string) bool {
 	return true
 }
 
-func getReq(data url.Values, getUrl string, cookies string) ([]byte, string) {
+func getReq(data url.Values, getUrl string, cookies string) ([]byte, string, error) {
 	u, err := url.ParseRequestURI(getUrl)
 	if err != nil {
-		panic(err)
+		return nil, "", err
 	}
 	u.RawQuery = data.Encode()
 	client := http.Client{}
@@ -38,7 +39,7 @@ func getReq(data url.Values, getUrl string, cookies string) ([]byte, string) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return nil, "", err
 	}
 	defer func(Body io.ReadCloser) {
 		err = Body.Close()
@@ -47,7 +48,7 @@ func getReq(data url.Values, getUrl string, cookies string) ([]byte, string) {
 		}
 	}(resp.Body)
 	if resp.StatusCode != 200 {
-		panic("error occurred when sending GET request")
+		return nil, "", errors.New("status code error: " + strconv.Itoa(resp.StatusCode) + " " + resp.Status)
 	}
 	if resp.Header.Get("Set-Cookie") != "" {
 		cookies = ""
@@ -59,15 +60,15 @@ func getReq(data url.Values, getUrl string, cookies string) ([]byte, string) {
 	}
 	s, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return nil, "", err
 	}
-	return s, cookies
+	return s, cookies, nil
 }
 
-func downloadFile(URL string, fileName string) {
+func downloadFile(URL string, fileName string) error {
 	response, err := http.Get(URL)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -76,11 +77,11 @@ func downloadFile(URL string, fileName string) {
 		}
 	}(response.Body)
 	if response.StatusCode != 200 {
-		panic("error occurred when downloading the file")
+		return errors.New("status code error: " + strconv.Itoa(response.StatusCode) + " " + response.Status)
 	}
 	file, err := os.Create(fileName)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -90,19 +91,20 @@ func downloadFile(URL string, fileName string) {
 	}(file)
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func SearchUser(KeyWord string, page int) ([]JsonSearchUser, int) {
+func SearchUser(KeyWord string, page int) ([]JsonSearchUser, int, error) {
 	if KeyWord == "" {
-		panic("KeyWord is empty")
+		return nil, 0, errors.New("KeyWord is empty")
 	}
 	err := error(nil)
 	if Cookies == "" {
 		Cookies = GetCookies()
 		if err != nil {
-			panic(err)
+			return nil, 0, err
 		}
 	}
 	getUrl := "https://api.bilibili.com/x/web-interface/search/type"
@@ -110,23 +112,27 @@ func SearchUser(KeyWord string, page int) ([]JsonSearchUser, int) {
 	data.Set("search_type", "bili_user")
 	data.Set("keyword", KeyWord)
 	data.Set("page", strconv.Itoa(page))
-	s, _ := getReq(data, getUrl, Cookies)
+	s, _, err := getReq(data, getUrl, Cookies)
 	if err != nil {
-		panic(err)
+		return nil, 0, err
 	}
 	var jSR JsonSearchRes
 	err = json.Unmarshal(s, &jSR)
 	if err != nil {
-		panic(err)
+		return nil, 0, err
 	}
-	return jSR.Data.Result, jSR.Data.NumPages
+	return jSR.Data.Result, jSR.Data.NumPages, nil
 }
 
 func GetCookies() string {
 	getUrl := "https://www.bilibili.com/"
 	data := url.Values{}
 	data.Set("spm_id_from", "333.999.0.0")
-	_, cookies := getReq(data, getUrl, "")
+	_, cookies, err := getReq(data, getUrl, "")
+	if err != nil {
+		log.Printf("Error occured when sending GET request: %v", err)
+		return ""
+	}
 	return cookies
 }
 
@@ -138,7 +144,7 @@ func GetUserInfo(uid int64) JsonUserInfo {
 	getUrl := "https://account.bilibili.com/api/member/getCardByMid"
 	data := url.Values{}
 	data.Set("mid", strconv.FormatInt(uid, 10))
-	s, _ := getReq(data, getUrl, Cookies)
+	s, _, err := getReq(data, getUrl, Cookies)
 	if err != nil {
 		log.Printf("Error occured when sending GET request: %v", err)
 		return JsonUserInfo{}
@@ -152,29 +158,39 @@ func GetUserInfo(uid int64) JsonUserInfo {
 	return jUI
 }
 
-func DownloadFace(FaceUrl string, uid int64) string {
+func DownloadFace(FaceUrl string, uid int64) (string, error) {
 	if FaceUrl == "" {
-		panic("FaceUrl is empty")
+		return "", errors.New("FaceUrl is empty")
 	}
 	if !pathExists("data/face") {
 		err := os.Mkdir("data/face", 0777)
 		if err != nil {
-			return ""
+			return "", err
 		}
 	}
 	fileName := "data/face/" + strconv.FormatInt(uid, 10) + ".jpg"
-	downloadFile(FaceUrl, fileName)
-	return fileName
+	err := downloadFile(FaceUrl, fileName)
+	if err != nil {
+		log.Printf("Error occured when downloading the file: %v", err)
+		return "", err
+	}
+	return fileName, nil
 }
 
 func DownloadVupJson() {
 	getUrl := "https://cfapi.vtbs.moe/v1/short"
 	fileName := "data/vup.json"
-	downloadFile(getUrl, fileName)
+	err := downloadFile(getUrl, fileName)
+	if err != nil {
+		log.Printf("Error occured when downloading the file: %v", err)
+	}
 }
 
 func DownloadFont() {
 	getUrl := "https://git.fishze.top/https://raw.githubusercontent.com/adobe-fonts/source-han-sans/release/Variable/TTF/SourceHanSansSC-VF.ttf"
 	fileName := "data/font/SourceHanSansSC-VF.ttf"
-	downloadFile(getUrl, fileName)
+	err := downloadFile(getUrl, fileName)
+	if err != nil {
+		log.Printf("Error occured when downloading the file: %v", err)
+	}
 }

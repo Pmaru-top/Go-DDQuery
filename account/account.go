@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
 )
@@ -82,7 +83,10 @@ func SearchName(Name string) (int64, error) {
 	if Name == "" {
 		return 0, errors.New("name can't be empty")
 	}
-	Users, PageNums := api.SearchUser(Name, 1)
+	Users, PageNums, err := api.SearchUser(Name, 1)
+	if err != nil {
+		return 0, err
+	}
 	var AllUsers []api.JsonSearchUser
 	for i := 1; i <= PageNums; i++ {
 		for _, User := range Users {
@@ -91,16 +95,20 @@ func SearchName(Name string) (int64, error) {
 			}
 			AllUsers = append(AllUsers, User)
 		}
-		Users, _ = api.SearchUser(Name, i+1)
+		Users, _, err = api.SearchUser(Name, i+1)
+		if err != nil {
+			log.Printf("SearchUser Error: %v", err)
+			continue
+		}
 	}
 	return 0, nil
 }
 
 func (u *User) GetUser() error {
-	err := errors.New("")
 	if u.UID == 0 && u.Name == "" {
 		return errors.New("UID and Name can't be empty at the same time")
 	}
+	var err error
 	if u.UID == 0 {
 		u.UID, err = SearchName(u.Name)
 		if err != nil {
@@ -114,6 +122,9 @@ func (u *User) GetUser() error {
 	if err != nil {
 		return err
 	}
+	if len(UserInfo.Card.Attentions) == 0 {
+		return errors.New("user has no attention")
+	}
 	u.Rank, err = strconv.Atoi(UserInfo.Card.Rank)
 	if err != nil {
 		return err
@@ -122,7 +133,10 @@ func (u *User) GetUser() error {
 	if err != nil {
 		return err
 	}
-	u.FaceFile = api.DownloadFace(UserInfo.Card.Face, u.UID)
+	u.FaceFile, err = api.DownloadFace(UserInfo.Card.Face, u.UID)
+	if err != nil {
+		log.Printf("DownloadFace Error: %v", err)
+	}
 	if err != nil {
 		return err
 	}
@@ -140,6 +154,9 @@ func (u *User) GetUser() error {
 		if _, ok := vups[vup]; ok {
 			u.VupAttentions = append(u.VupAttentions, vups[vup])
 		}
+	}
+	if len(u.VupAttentions) == 0 {
+		return errors.New("user has no vup attention")
 	}
 	return nil
 }
