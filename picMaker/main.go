@@ -1,9 +1,9 @@
 package picMaker
 
 import (
-	"Go-DDQuery/account"
-	"Go-DDQuery/api"
 	"bufio"
+	"github.com/FishZe/Go-DDQuery/account"
+	"github.com/FishZe/Go-DDQuery/api"
 	"github.com/golang/freetype"
 	"github.com/nfnt/resize"
 	"image"

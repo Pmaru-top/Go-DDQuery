@@ -1,10 +1,10 @@
 package account
 
 import (
-	"Go-DDQuery/api"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/FishZe/Go-DDQuery/api"
 	"io"
 	"log"
 	"os"

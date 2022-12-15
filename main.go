@@ -1,9 +1,9 @@
 package main
 
 import (
-	"Go-DDQuery/account"
-	"Go-DDQuery/picMaker"
 	"fmt"
+	"github.com/FishZe/Go-DDQuery/account"
+	"github.com/FishZe/Go-DDQuery/picMaker"
 	"os/exec"
 	"strconv"
 )
