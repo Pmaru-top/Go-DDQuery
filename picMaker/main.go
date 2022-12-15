@@ -5,6 +5,7 @@ import (
 	"github.com/FishZe/Go-DDQuery/account"
 	"github.com/FishZe/Go-DDQuery/api"
 	"github.com/golang/freetype"
+	"github.com/golang/freetype/truetype"
 	"github.com/nfnt/resize"
 	"image"
 	"image/color"
@@ -18,6 +19,8 @@ import (
 	"strconv"
 	"time"
 )
+
+var font *truetype.Font
 
 func pathExists(path string) bool {
 	_, err := os.Stat(path)
@@ -90,12 +93,12 @@ func savePic(user account.User, img *image.RGBA) (string, error) {
 	return route, nil
 }
 
-func writeText(size float64, x, y int, text string, img *image.RGBA) {
+func loadFont() *truetype.Font {
 	if !pathExists("data/font/SourceHanSansSC-VF.ttf") {
 		if !pathExists("data/font") {
 			err := os.Mkdir("data/font", 0777)
 			if err != nil {
-				return
+				return nil
 			}
 		}
 		api.DownloadFont()
@@ -103,14 +106,20 @@ func writeText(size float64, x, y int, text string, img *image.RGBA) {
 	fontBytes, err := os.ReadFile("./data/font/SourceHanSansSC-VF.ttf")
 	if err != nil {
 		log.Printf("读取字体文件失败: %v", err)
-		return
+		return nil
 	}
 	font, err := freetype.ParseFont(fontBytes)
 	if err != nil {
 		log.Printf("解析字体文件失败: %v", err)
-		return
+		return nil
 	}
+	return font
+}
 
+func writeText(size float64, x, y int, text string, img *image.RGBA) {
+	if font == nil {
+		font = loadFont()
+	}
 	f := freetype.NewContext()
 	f.SetDPI(100)
 	f.SetFont(font)
@@ -119,7 +128,7 @@ func writeText(size float64, x, y int, text string, img *image.RGBA) {
 	f.SetDst(img)
 	f.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
 	pt := freetype.Pt(x, y)
-	_, err = f.DrawString(text, pt)
+	_, err := f.DrawString(text, pt)
 	if err != nil {
 		log.Printf("写入文字失败: %v", err)
 		return
