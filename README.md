@@ -2,6 +2,12 @@
 
 ### Go语言的Bilibili的DD成分查询
 
+- [x] 通过UID查询
+- [x] 通过用户名查询
+- [x] 显示所有大航海数据
+- [x] 显示直播中的主播
+- [x] 通过`HTTP`接口查询, 支持其他`BOT`调用
+
 ![](./pic/208259.png)
 
 ### 使用方法:
@@ -26,7 +32,7 @@ func main() {
 	}
 	var uid int64
 	var name string
-	if (len(input) > 4 && (input[:4] == "UID:" || input[:4] == "uid:")) || (len(input) > 5 && (input[:4] == "UID：" || input[:4] == "uid：")) {
+	if len(input) > 4 && (input[:4] == "UID:" || input[:4] == "uid:") {
 		input = input[4:]
 		uid, err = strconv.ParseInt(input, 10, 64)
 		if err != nil {
@@ -48,6 +54,10 @@ func main() {
 		return
 	}
 }
+{
+		return
+	}
+}
 ```
 2. 和`Gin`一起使用
 ```go
@@ -57,6 +67,7 @@ import (
 	"github.com/FishZe/Go-DDQuery"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -84,14 +95,26 @@ func main() {
 			})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"route": route,
-			"error": nil,
-		})
+		if c.Query("show") == "1" {
+			file, _ := os.ReadFile(route)
+			_, err2 := c.Writer.WriteString(string(file))
+			if err2 != nil {
+				c.JSON(http.StatusOK, gin.H{
+					"error": err2.Error(),
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusOK, gin.H{
+				"route": route,
+				"error": nil,
+			})
+		}
 	})
-	err := r.Run(":20004")
+	err := r.Run()
 	if err != nil {
 		return
 	}
 }
+
 ```
