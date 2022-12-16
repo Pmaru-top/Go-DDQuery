@@ -290,3 +290,19 @@ func DownloadGuardIcon() {
 		guardIcon2Write(fileName)
 	}
 }
+
+func DownloadIcons() {
+	getUrl := map[string]string{}
+	for i := 0; i <= 6; i++ {
+		getUrl["l"+strconv.Itoa(i)] = "https://git.fishze.top/https://raw.githubusercontent.com/FishZe/Go-DDQuery/master/data/icon/l" + strconv.Itoa(i) + ".png"
+	}
+	getUrl["living"] = "https://git.fishze.top/https://raw.githubusercontent.com/FishZe/Go-DDQuery/master/data/icon/living.png"
+	for i, j := range getUrl {
+		fileName := "data/icon/" + i + ".png"
+		err := downloadFile(j, fileName)
+		if err != nil {
+			log.Printf("Error occured when downloading the file: %v", err)
+			continue
+		}
+	}
+}

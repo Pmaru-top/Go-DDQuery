@@ -41,6 +41,22 @@ func pathExists(path string) bool {
 	return true
 }
 
+func checkIcons() {
+	if !pathExists("data/icon") {
+		err := os.Mkdir("data/icon", 0777)
+		if err != nil {
+			log.Printf("make icon dir failed: %v", err)
+			return
+		}
+	}
+	if !pathExists("data/icon/g0.png") {
+		api.DownloadGuardIcon()
+	}
+	if !pathExists("data/icon/l0.png") {
+		api.DownloadIcons()
+	}
+}
+
 func initPic(user account.User) (*image.RGBA, int, int) {
 	columnSum := len(user.VupAttentions) / 300
 	if len(user.VupAttentions)%300 != 0 {
@@ -232,6 +248,7 @@ func writeAttention(user account.User, colum int, img *image.RGBA) {
 }
 
 func MkPic(user account.User) (string, error) {
+	checkIcons()
 	img, colum, height := initPic(user)
 	pasteFace(user, img)
 	writeUserInfo(user, img, height)

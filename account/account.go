@@ -106,14 +106,6 @@ func getVup() (map[int64]Vup, error) {
 }
 
 func getGuard(user *User) (UserGuard, error) {
-	if !pathExists("data/icon") {
-		err := os.Mkdir("data/icon", 0777)
-		if err != nil {
-			log.Printf("os.Mkdir Error: %v", err)
-			return UserGuard{Uname: user.Name, Face: "", Mid: user.UID, Dd: make([][]int64, 3)}, err
-		}
-		api.DownloadGuardIcon()
-	}
 	err := checkDataUpdate("data/guard.json", api.DownloadGuardJson)
 	if err != nil {
 		log.Printf("checkDataUpdate Error: %v", err)
