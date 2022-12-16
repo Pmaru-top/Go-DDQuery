@@ -1,4 +1,4 @@
-package Go_DDQuery
+package main
 
 import (
 	"github.com/FishZe/Go-DDQuery/account"
@@ -16,4 +16,8 @@ func DDQuery(Name string, Uid int64) (string, error) {
 		return "", err
 	}
 	return route, nil
+}
+
+func main() {
+	DDQuery("夜然z", 0)
 }

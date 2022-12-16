@@ -8,30 +8,39 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
+	"time"
 )
 
 type User struct {
-	UID           int64   `json:"uid"`
-	Name          string  `json:"username"`
-	Rank          int     `json:"rank"`
-	Sex           string  `json:"sex"`
-	Face          string  `json:"face"`
-	FaceFile      string  `json:"face_file"`
-	Sign          string  `json:"sign"`
-	Coins         float64 `json:"coins"`
-	RegTime       int     `json:"regtime"`
-	Fans          int     `json:"fans"`
-	Attention     int     `json:"attention"`
-	CurrentExp    int     `json:"current_exp"`
-	Attentions    []int64 `json:"attentions"`
-	VupAttentions []Vup   `json:"vup_attentions"`
+	UID           int64     `json:"uid"`
+	Name          string    `json:"username"`
+	Rank          int       `json:"rank"`
+	Sex           string    `json:"sex"`
+	Face          string    `json:"face"`
+	FaceFile      string    `json:"face_file"`
+	Sign          string    `json:"sign"`
+	Coins         float64   `json:"coins"`
+	RegTime       int       `json:"regtime"`
+	Fans          int       `json:"fans"`
+	Attention     int       `json:"attention"`
+	CurrentExp    int       `json:"current_exp"`
+	Attentions    []int64   `json:"attentions"`
+	VupAttentions []Vup     `json:"vup_attentions"`
+	UserGuard     UserGuard `json:"user_guard"`
 }
 
 type Vup struct {
 	Mid    int64  `json:"mid,omitempty"`
 	Uname  string `json:"uname,omitempty"`
-	RoomId int    `json:"roomid,omitempty"`
+	RoomId int64  `json:"roomid,omitempty"`
+	Living bool   `json:"living,omitempty"`
+}
+
+type UserGuard struct {
+	Uname string    `json:"uname"`
+	Face  string    `json:"face"`
+	Mid   int64     `json:"mid"`
+	Dd    [][]int64 `json:"dd"`
 }
 
 func pathExists(path string) bool {
@@ -45,15 +54,32 @@ func pathExists(path string) bool {
 	return true
 }
 
-func getVup() (map[int64]Vup, error) {
-	if !pathExists("data/vup.json") {
+func checkDataUpdate(fileName string, download func()) error {
+	if !pathExists(fileName) {
 		if !pathExists("data") {
 			err := os.Mkdir("data", 0777)
 			if err != nil {
-				return nil, err
+				log.Printf("os.Mkdir Error: %v", err)
+				return err
 			}
 		}
-		api.DownloadVupJson()
+		download()
+		return nil
+	}
+	fileInfo, err := os.Stat(fileName)
+	if err != nil {
+		return err
+	}
+	if time.Now().Unix()-fileInfo.ModTime().Unix() > 24*60*60 {
+		download()
+	}
+	return nil
+}
+
+func getVup() (map[int64]Vup, error) {
+	err := checkDataUpdate("data/vup.json", api.DownloadVupJson)
+	if err != nil {
+		return nil, err
 	}
 	jsonFile, err := os.Open("data/vup.json")
 	if err != nil {
@@ -77,6 +103,50 @@ func getVup() (map[int64]Vup, error) {
 		vupMap[vup.Mid] = vup
 	}
 	return vupMap, nil
+}
+
+func getGuard(user *User) (UserGuard, error) {
+	if !pathExists("data/icon") {
+		err := os.Mkdir("data/icon", 0777)
+		if err != nil {
+			log.Printf("os.Mkdir Error: %v", err)
+			return UserGuard{Uname: user.Name, Face: "", Mid: user.UID, Dd: make([][]int64, 3)}, err
+		}
+		api.DownloadGuardIcon()
+	}
+	err := checkDataUpdate("data/guard.json", api.DownloadGuardJson)
+	if err != nil {
+		log.Printf("checkDataUpdate Error: %v", err)
+	}
+	updateTime, err := api.GetUserGuardUpdateTime()
+	if err != nil {
+		updateTime = 0
+		log.Printf("GetUserGuardUpdateTime Error: %v", err)
+	}
+	if time.Now().Unix()-updateTime > 3*24*60*60 {
+		return UserGuard{Uname: user.Name, Face: "", Mid: user.UID, Dd: make([][]int64, 3)}, nil
+	}
+	jsonFile, err := os.Open("data/guard.json")
+	if err != nil {
+		fmt.Println(err)
+		return UserGuard{Uname: user.Name, Face: "", Mid: user.UID, Dd: make([][]int64, 3)}, err
+	}
+	defer func(jsonFile *os.File) {
+		err := jsonFile.Close()
+		if err != nil {
+			fmt.Println("jsonFile.Close() Error!")
+		}
+	}(jsonFile)
+	byteValue, _ := io.ReadAll(jsonFile)
+	var result map[int64]UserGuard
+	err = json.Unmarshal(byteValue, &result)
+	if err != nil {
+		return UserGuard{Uname: user.Name, Face: "", Mid: user.UID, Dd: make([][]int64, 3)}, err
+	}
+	if _, ok := result[user.UID]; ok {
+		return result[user.UID], nil
+	}
+	return UserGuard{Uname: user.Name, Face: "", Mid: user.UID, Dd: make([][]int64, 3)}, nil
 }
 
 func SearchName(Name string) (int64, error) {
@@ -125,10 +195,6 @@ func (u *User) GetUser() error {
 	if len(UserInfo.Card.Attentions) == 0 {
 		return errors.New("user has no attention")
 	}
-	u.Rank, err = strconv.Atoi(UserInfo.Card.Rank)
-	if err != nil {
-		return err
-	}
 	vups, err := getVup()
 	if err != nil {
 		return err
@@ -140,6 +206,7 @@ func (u *User) GetUser() error {
 	if err != nil {
 		return err
 	}
+	u.Rank = UserInfo.Card.LevelInfo.CurrentLevel
 	u.Name = UserInfo.Card.Name
 	u.Sex = UserInfo.Card.Sex
 	u.Face = UserInfo.Card.Face
@@ -157,6 +224,20 @@ func (u *User) GetUser() error {
 	}
 	if len(u.VupAttentions) == 0 {
 		return errors.New("user has no vup attention")
+	}
+	LivingRoom := api.GetLivingRoom()
+	for i, vup := range u.VupAttentions {
+		u.VupAttentions[i].Living = false
+		for _, room := range LivingRoom {
+			if vup.RoomId == room {
+				u.VupAttentions[i].Living = true
+				break
+			}
+		}
+	}
+	u.UserGuard, err = getGuard(u)
+	if err != nil {
+		log.Printf("getGuard Error: %v", err)
 	}
 	return nil
 }

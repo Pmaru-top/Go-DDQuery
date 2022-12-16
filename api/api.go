@@ -1,8 +1,14 @@
 package api
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -177,8 +183,25 @@ func DownloadFace(FaceUrl string, uid int64) (string, error) {
 	return fileName, nil
 }
 
+func GetLivingRoom() []int64 {
+	getUrl := "https://api.vtbs.moe/v1/living"
+	data := url.Values{}
+	s, _, err := getReq(data, getUrl, "")
+	if err != nil {
+		fmt.Println(err)
+		return []int64{}
+	}
+	var LR []int64
+	err = json.Unmarshal(s, &LR)
+	if err != nil {
+		fmt.Println(err)
+		return []int64{}
+	}
+	return LR
+}
+
 func DownloadVupJson() {
-	getUrl := "https://cfapi.vtbs.moe/v1/short"
+	getUrl := "https://api.vtbs.moe/v1/short"
 	fileName := "data/vup.json"
 	err := downloadFile(getUrl, fileName)
 	if err != nil {
@@ -192,5 +215,78 @@ func DownloadFont() {
 	err := downloadFile(getUrl, fileName)
 	if err != nil {
 		log.Printf("Error occured when downloading the file: %v", err)
+	}
+}
+
+func GetUserGuardUpdateTime() (int64, error) {
+	getUrl := "https://api.vtbs.moe/v1/guard/time"
+	data := url.Values{}
+	t, _, err := getReq(data, getUrl, "")
+	if err != nil {
+		return 0, err
+	}
+	return int64(binary.BigEndian.Uint64(t)), nil
+}
+
+func DownloadGuardJson() {
+	getUrl := "https://api.vtbs.moe/v1/guard/all"
+	fileName := "data/guard.json"
+	err := downloadFile(getUrl, fileName)
+	if err != nil {
+		log.Printf("Error occured when downloading the file: %v", err)
+	}
+}
+
+func guardIcon2Write(fileName string) {
+	guardIcon, err := os.Open(fileName)
+	if err != nil {
+		fmt.Println("Error occured when opening the file: ", err)
+		return
+	}
+	defer func(pngImgFile *os.File) {
+		err := pngImgFile.Close()
+		if err != nil {
+			fmt.Println("Error occured when closing the file: ", err)
+		}
+	}(guardIcon)
+	rawImg, err := png.Decode(guardIcon)
+	if err != nil {
+		fmt.Println("Error occured when decoding the image: ", err)
+		return
+	}
+	newImg := image.NewRGBA(rawImg.Bounds())
+	draw.Draw(newImg, newImg.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
+	draw.Draw(newImg, newImg.Bounds(), rawImg, rawImg.Bounds().Min, draw.Over)
+	newImgFile, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println("Error occured when creating the file: ", err)
+		return
+	}
+	defer func(jpgImgFile *os.File) {
+		err := jpgImgFile.Close()
+		if err != nil {
+			fmt.Println("Error occured when closing the file: ", err)
+		}
+	}(newImgFile)
+	err = png.Encode(newImgFile, newImg)
+	if err != nil {
+		fmt.Println("Error occured when encoding the image: ", err)
+		return
+	}
+}
+
+func DownloadGuardIcon() {
+	getUrl := map[int]string{}
+	getUrl[0] = "https://i0.hdslb.com/bfs/live/1d16bf0fcc3b1b768d1179d60f1fdbabe6ab4489.png"
+	getUrl[1] = "https://i0.hdslb.com/bfs/live/98a201c14a64e860a758f089144dcf3f42e7038c.png"
+	getUrl[2] = "https://i0.hdslb.com/bfs/live/143f5ec3003b4080d1b5f817a9efdca46d631945.png"
+	for i, j := range getUrl {
+		fileName := "data/icon/g" + strconv.Itoa(i) + ".png"
+		err := downloadFile(j, fileName)
+		if err != nil {
+			log.Printf("Error occured when downloading the file: %v", err)
+			continue
+		}
+		guardIcon2Write(fileName)
 	}
 }
