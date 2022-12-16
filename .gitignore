@@ -26,3 +26,5 @@ data/out/*
 data/font/*
 data/vup.json
 data/guard.json
+
+example/*
