@@ -54,10 +54,6 @@ func main() {
 		return
 	}
 }
-{
-		return
-	}
-}
 ```
 2. 和`Gin`一起使用
 ```go
