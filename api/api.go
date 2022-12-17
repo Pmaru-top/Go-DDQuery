@@ -209,6 +209,15 @@ func DownloadVupJson() {
 	}
 }
 
+func DownloadVupInfoJson() {
+	getUrl := "https://vdb.vtbs.moe/json/fs.json"
+	fileName := "data/vup_info.json"
+	err := downloadFile(getUrl, fileName)
+	if err != nil {
+		log.Printf("Error occured when downloading the file: %v", err)
+	}
+}
+
 func DownloadFont() {
 	getUrl := "https://git.fishze.top/https://raw.githubusercontent.com/adobe-fonts/source-han-sans/release/Variable/TTF/SourceHanSansSC-VF.ttf"
 	fileName := "data/font/SourceHanSansSC-VF.ttf"

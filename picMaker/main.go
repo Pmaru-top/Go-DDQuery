@@ -66,8 +66,8 @@ func initPic(user account.User) (*image.RGBA, int, int) {
 	if columnSum != 1 {
 		height = 530 + 55*300
 	}
-	img := image.NewRGBA(image.Rect(0, 0, 1000*columnSum, height))
-	for x := 0; x < 1000*columnSum; x++ {
+	img := image.NewRGBA(image.Rect(0, 0, 1200*columnSum, height))
+	for x := 0; x < 1200*columnSum; x++ {
 		for y := 0; y < height; y++ {
 			img.Set(x, y, image.White)
 		}
@@ -140,7 +140,7 @@ func loadFont() *truetype.Font {
 	return font
 }
 
-func writeText(size float64, x, y int, text string, img *image.RGBA) {
+func writeText(size float64, x, y int, text string, img *image.RGBA) (int, int) {
 	if font == nil {
 		font = loadFont()
 	}
@@ -152,11 +152,12 @@ func writeText(size float64, x, y int, text string, img *image.RGBA) {
 	f.SetDst(img)
 	f.SetSrc(image.NewUniform(color.RGBA{0, 0, 0, 255}))
 	pt := freetype.Pt(x, y)
-	_, err := f.DrawString(text, pt)
+	p, err := f.DrawString(text, pt)
 	if err != nil {
 		log.Printf("写入文字失败: %v", err)
-		return
+		return 0, 0
 	}
+	return p.X.Ceil(), p.Y.Ceil()
 }
 
 func pasteRank(x int, y int, rank int, img *image.RGBA) {
@@ -176,8 +177,8 @@ func pasteRank(x int, y int, rank int, img *image.RGBA) {
 
 func writeUserInfo(user account.User, img *image.RGBA, height int) {
 	writeText(10, 5, 20, "Generate: "+time.Now().Format("2006/01/02 15:04:05")+"  Build: "+getBuildTime(), img)
-	pasteRank(270, 80, user.Rank, img)
-	writeText(40, 330, 100, user.Name, img)
+	x, y := writeText(40, 270, 100, user.Name, img)
+	pasteRank(x, y-25, user.Rank, img)
 	writeText(30, 270, 150, "UID: "+strconv.FormatInt(user.UID, 10), img)
 	scale := float64(len(user.VupAttentions)) / float64(len(user.Attentions)) * 100
 	writeText(50, 270, 230, strconv.FormatFloat(scale, 'f', 2, 64)+"% ("+strconv.Itoa(len(user.VupAttentions))+" / "+strconv.Itoa(len(user.Attentions))+")", img)
@@ -222,27 +223,33 @@ func pasteLiving(x int, y int, img *image.RGBA) {
 		log.Printf("Decode file failed: %v", err)
 		return
 	}
-	resizeFace := resize.Resize(60, 20, face, resize.Lanczos3)
-	draw.Draw(img, image.Rect(x, y, x+60, y+20), resizeFace, image.Point{}, draw.Src)
+	resizeFace := resize.Resize(90, 30, face, resize.Lanczos3)
+	draw.Draw(img, image.Rect(x, y, x+90, y+30), resizeFace, image.Point{}, draw.Src)
 }
 
 func writeAttention(user account.User, colum int, img *image.RGBA) {
 	for i := 0; i < colum; i++ {
 		for j := 1; j <= 300 && (i*300+j) <= len(user.VupAttentions); j++ {
 			v := user.VupAttentions[i*300+j-1]
-			txt := v.Uname + " [" + strconv.FormatInt(v.Mid, 10) + " / " + strconv.FormatInt(v.RoomId, 10) + "]"
-			x := 55 + i*1000
-			y := 430 + (j-1)*55
-			isGuard := checkGuard(&user, x, y, v.Mid, img)
-			y += 40
-			if isGuard {
-				x += 50
+			// 文字内容
+			txt := ""
+			if v.Group != "" {
+				txt = txt + "[" + v.Group + "] "
 			}
+			txt = txt + v.Uname + " (" + strconv.FormatInt(v.Mid, 10) + ")"
+			if v.IsBot {
+				txt = txt + " [BOT]"
+			}
+			var (
+				x = 55 + i*1200
+				y = 430 + (j-1)*55
+			)
+			checkGuard(&user, x, y, v.Mid, img)
+			x, y = writeText(30, x+50, y+40, txt, img)
 			if v.Living {
-				pasteLiving(x, y-20, img)
-				x += 60
+				pasteLiving(x, y-30, img)
 			}
-			writeText(30, x, y, txt, img)
+
 		}
 	}
 }

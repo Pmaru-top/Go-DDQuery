@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
+	"strconv"
 	"time"
 )
 
@@ -30,10 +32,25 @@ type User struct {
 }
 
 type Vup struct {
-	Mid    int64  `json:"mid,omitempty"`
-	Uname  string `json:"uname,omitempty"`
-	RoomId int64  `json:"roomid,omitempty"`
-	Living bool   `json:"living,omitempty"`
+	Mid    int64  `json:"mid"`
+	Uname  string `json:"uname"`
+	RoomId int64  `json:"roomid"`
+	Living bool   `json:"living"`
+	IsBot  bool   `json:"is_bot"`
+	Group  string `json:"group"`
+}
+
+type VupInfo struct {
+	Accounts struct {
+		Bilibili interface{} `json:"bilibili"`
+	} `json:"accounts"`
+	Group string `json:"group"`
+	Bot   bool   `json:"bot"`
+}
+
+type BiliAccountType struct {
+	Type string `json:"type"`
+	Id   string `json:"id"`
 }
 
 type UserGuard struct {
@@ -76,10 +93,55 @@ func checkDataUpdate(fileName string, download func()) error {
 	return nil
 }
 
+func getVupInfo() (map[int64]VupInfo, error) {
+	err := checkDataUpdate("data/vup_info.json", api.DownloadVupInfoJson)
+	if err != nil {
+		return map[int64]VupInfo{}, err
+	}
+	jsonFile, err := os.Open("data/vup_info.json")
+	if err != nil {
+		fmt.Println(err)
+		return map[int64]VupInfo{}, err
+	}
+	defer func(jsonFile *os.File) {
+		err := jsonFile.Close()
+		if err != nil {
+			fmt.Println("jsonFile.Close() Error!")
+		}
+	}(jsonFile)
+	byteValue, _ := io.ReadAll(jsonFile)
+	var result map[string]VupInfo
+	err = json.Unmarshal(byteValue, &result)
+	if err != nil {
+		fmt.Println(err)
+		return map[int64]VupInfo{}, err
+	}
+	var vupMap = make(map[int64]VupInfo)
+	for _, vup := range result {
+		var Mid int64
+		switch vup.Accounts.Bilibili.(type) {
+		case string:
+			Mid, err = strconv.ParseInt(vup.Accounts.Bilibili.(string), 10, 64)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		case BiliAccountType:
+			Mid, err = strconv.ParseInt(vup.Accounts.Bilibili.(BiliAccountType).Id, 10, 64)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		}
+		vupMap[Mid] = vup
+	}
+	return vupMap, nil
+}
+
 func getVup() (map[int64]Vup, error) {
 	err := checkDataUpdate("data/vup.json", api.DownloadVupJson)
 	if err != nil {
-		return nil, err
+		return map[int64]Vup{}, err
 	}
 	jsonFile, err := os.Open("data/vup.json")
 	if err != nil {
@@ -99,7 +161,16 @@ func getVup() (map[int64]Vup, error) {
 		return map[int64]Vup{}, err
 	}
 	var vupMap = make(map[int64]Vup)
+	vupInfoMap, err := getVupInfo()
+	if err != nil {
+		vupInfoMap = map[int64]VupInfo{}
+	}
 	for _, vup := range result {
+		if _, ok := vupInfoMap[vup.Mid]; ok {
+			vup.IsBot = vupInfoMap[vup.Mid].Bot
+			vup.Group = vupInfoMap[vup.Mid].Group
+
+		}
 		vupMap[vup.Mid] = vup
 	}
 	return vupMap, nil
@@ -231,5 +302,17 @@ func (u *User) GetUser() error {
 	if err != nil {
 		log.Printf("getGuard Error: %v", err)
 	}
+	sort.Slice(u.VupAttentions, func(i, j int) bool {
+		if u.VupAttentions[i].Group == u.VupAttentions[j].Group {
+			if u.VupAttentions[i].Living == u.VupAttentions[j].Living {
+				return u.VupAttentions[i].Mid < u.VupAttentions[j].Mid
+			} else {
+				return u.VupAttentions[i].Living
+			}
+		} else if u.VupAttentions[i].Group > u.VupAttentions[j].Group {
+			return true
+		}
+		return false
+	})
 	return nil
 }
