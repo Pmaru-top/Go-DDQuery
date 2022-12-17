@@ -1,4 +1,4 @@
-package main
+package Go_DDQuery
 
 import (
 	"github.com/FishZe/Go-DDQuery/account"
