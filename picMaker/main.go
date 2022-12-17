@@ -180,8 +180,12 @@ func writeUserInfo(user account.User, img *image.RGBA, height int) {
 	x, y := writeText(40, 270, 100, user.Name, img)
 	pasteRank(x, y-25, user.Rank, img)
 	writeText(30, 270, 150, "UID: "+strconv.FormatInt(user.UID, 10), img)
-	scale := float64(len(user.VupAttentions)) / float64(len(user.Attentions)) * 100
-	writeText(50, 270, 230, strconv.FormatFloat(scale, 'f', 2, 64)+"% ("+strconv.Itoa(len(user.VupAttentions))+" / "+strconv.Itoa(len(user.Attentions))+")", img)
+	if user.Permit {
+		scale := float64(len(user.VupAttentions)) / float64(len(user.Attentions)) * 100
+		writeText(50, 270, 230, strconv.FormatFloat(scale, 'f', 2, 64)+"% ("+strconv.Itoa(len(user.VupAttentions))+" / "+strconv.Itoa(len(user.Attentions))+")", img)
+	} else {
+		writeText(50, 270, 230, "? % ( ? / "+strconv.Itoa(user.Attention)+")", img)
+	}
 	tm := time.Unix(int64(user.RegTime), 0)
 	writeText(25, 50, 300, "注册时间: "+tm.Format("2006-01-02 15:04:05"), img)
 	writeText(25, 50, 350, "粉丝量: "+strconv.Itoa(user.Fans)+"    硬币数: "+strconv.FormatFloat(user.Coins, 'f', 1, 64)+"    经验: "+strconv.Itoa(user.CurrentExp), img)

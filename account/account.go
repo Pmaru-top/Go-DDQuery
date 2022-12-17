@@ -25,10 +25,12 @@ type User struct {
 	RegTime       int       `json:"regtime"`
 	Fans          int       `json:"fans"`
 	Attention     int       `json:"attention"`
+	AttentionSum  int       `json:"attention_sum"`
 	CurrentExp    int       `json:"current_exp"`
 	Attentions    []int64   `json:"attentions"`
 	VupAttentions []Vup     `json:"vup_attentions"`
 	UserGuard     UserGuard `json:"user_guard"`
+	Permit        bool      `json:"permit"`
 }
 
 type Vup struct {
@@ -255,9 +257,6 @@ func (u *User) GetUser() error {
 	if err != nil {
 		return err
 	}
-	if len(UserInfo.Card.Attentions) == 0 {
-		return errors.New("user has no attention")
-	}
 	vups, err := getVup()
 	if err != nil {
 		return err
@@ -278,6 +277,7 @@ func (u *User) GetUser() error {
 	u.RegTime = UserInfo.Card.Regtime
 	u.Fans = UserInfo.Card.Fans
 	u.Attention = UserInfo.Card.Attention
+	u.AttentionSum = UserInfo.Card.Attention
 	u.CurrentExp = UserInfo.Card.LevelInfo.CurrentExp
 	u.Attentions = UserInfo.Card.Attentions
 	for _, vup := range u.Attentions {
@@ -285,8 +285,24 @@ func (u *User) GetUser() error {
 			u.VupAttentions = append(u.VupAttentions, vups[vup])
 		}
 	}
+	u.UserGuard, err = getGuard(u)
+	if err != nil {
+		log.Printf("getGuard Error: %v", err)
+	}
 	if len(u.VupAttentions) == 0 {
-		return errors.New("user has no vup attention")
+		if len(u.UserGuard.Dd[0]) == 0 && len(u.UserGuard.Dd[1]) == 0 && len(u.UserGuard.Dd[2]) == 0 {
+			return errors.New("user has no vup attention")
+		}
+		u.Permit = false
+		for i := 0; i <= 2; i++ {
+			for _, vup := range u.UserGuard.Dd[i] {
+				if _, ok := vups[vup]; ok {
+					u.VupAttentions = append(u.VupAttentions, vups[vup])
+				}
+			}
+		}
+	} else {
+		u.Permit = true
 	}
 	LivingRoom := api.GetLivingRoom()
 	for i, vup := range u.VupAttentions {
@@ -297,10 +313,6 @@ func (u *User) GetUser() error {
 				break
 			}
 		}
-	}
-	u.UserGuard, err = getGuard(u)
-	if err != nil {
-		log.Printf("getGuard Error: %v", err)
 	}
 	sort.Slice(u.VupAttentions, func(i, j int) bool {
 		if u.VupAttentions[i].Group == u.VupAttentions[j].Group {
