@@ -11,10 +11,12 @@
 ![](./pic/208259.png)
 
 ### 示例代碼:
-1.[在控制臺使用](main/main.go#L19-L57)
-2.[作爲HttpApi(使用Gin)](main/main.go#59-L101)
+1.[`在控制臺使用`](main/main.go#L19-L57)
 
-Http請求實例:
+2.[`作爲HttpApi(使用Gin)`](main/main.go#59-L101)
+
+Http請求示例:
 ```http://127.0.0.1:8964/query?name=嘉然今天吃什么```
-672328094
+
+
 ```http://127.0.0.1:8964/query?uid=672328094```
