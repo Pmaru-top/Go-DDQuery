@@ -19,7 +19,7 @@ import (
 
 var Cookies string
 
-func pathExists(path string) bool {
+func PathExists(path string) bool {
 	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsExist(err) {
@@ -168,7 +168,7 @@ func DownloadFace(FaceUrl string, uid int64) (string, error) {
 	if FaceUrl == "" {
 		return "", errors.New("FaceUrl is empty")
 	}
-	if !pathExists("data/face") {
+	if !PathExists("data/face") {
 		err := os.Mkdir("data/face", 0777)
 		if err != nil {
 			return "", err

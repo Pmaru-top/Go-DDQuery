@@ -1,19 +1,23 @@
 package picMaker
 
 import (
+	"bufio"
+	"bytes"
 	"image"
 	"image/color"
 	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
+	"image/png"
 	_ "image/png"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/FishZe/Go-DDQuery/account"
-	"github.com/FishZe/Go-DDQuery/api"
+	"github.com/Pmaru-top/Go-DDQuery/account"
+	"github.com/Pmaru-top/Go-DDQuery/api"
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
 	"github.com/nfnt/resize"
@@ -29,29 +33,26 @@ func getBuildTime() string {
 	return info.ModTime().Format("2006-01-02 15:04:05")
 }
 
-func pathExists(path string) bool {
+func PathExists(path string) bool {
 	_, err := os.Stat(path)
 	if err != nil {
-		if os.IsExist(err) {
-			return true
-		}
-		return false
+		return os.IsExist(err)
 	}
 	return true
 }
 
 func checkIcons() {
-	if !pathExists("data/icon") {
+	if !PathExists("data/icon") {
 		err := os.Mkdir("data/icon", 0777)
 		if err != nil {
 			log.Printf("make icon dir failed: %v", err)
 			return
 		}
 	}
-	if !pathExists("data/icon/g0.png") {
+	if !PathExists("data/icon/g0.png") {
 		api.DownloadGuardIcon()
 	}
-	if !pathExists("data/icon/l0.png") {
+	if !PathExists("data/icon/l0.png") {
 		api.DownloadIcons()
 	}
 }
@@ -88,27 +89,29 @@ func pasteFace(user account.User, img *image.RGBA) {
 	draw.Draw(img, image.Rect(50, 50, 250, 250), resizeFace, image.Point{}, draw.Src)
 }
 
-func SavePic(route string, bytes []byte) (err error) {
-	if !pathExists("data/out") {
-		err = os.Mkdir("data/out", 0777)
+func SavePic(directory string, bytes []byte) (err error) {
+	path := filepath.Dir(directory)
+	if !PathExists(path) {
+		err = os.Mkdir(path, 0777)
 		if err != nil {
 			return
 		}
 	}
-	file, err := os.Create(route)
-	defer file.Close()
+	file, err := os.Create(directory)
+
 	if err != nil {
 		return
 	}
 
 	_, err = file.Write(bytes)
+	defer file.Close()
 
 	return
 }
 
 func loadFont() *truetype.Font {
-	if !pathExists("data/font/SourceHanSansSC-VF.ttf") {
-		if !pathExists("data/font") {
+	if !PathExists("data/font/SourceHanSansSC-VF.ttf") {
+		if !PathExists("data/font") {
 			err := os.Mkdir("data/font", 0777)
 			if err != nil {
 				return nil
@@ -180,7 +183,7 @@ func writeUserInfo(user account.User, img *image.RGBA, height int) {
 	writeText(25, 50, 350, "粉丝量: "+strconv.Itoa(user.Fans)+"    硬币数: "+strconv.FormatFloat(user.Coins, 'f', 1, 64)+"    经验: "+strconv.Itoa(user.CurrentExp), img)
 	writeText(25, 50, 400, "舰长: "+strconv.Itoa(len(user.UserGuard.Dd[2]))+"    提督: "+strconv.Itoa(len(user.UserGuard.Dd[1]))+"    总督: "+strconv.Itoa(len(user.UserGuard.Dd[0])), img)
 	writeText(15, 20, height-30, "Vup数据来源: https://github.com/dd-center", img)
-	writeText(15, 20, height-60, "开源地址: https://github.com/FishZe/Go-DDQuery", img)
+	writeText(15, 20, height-60, "开源地址: https://github.com/Pmaru-top/Go-DDQuery(Pmaru修改版)", img)
 }
 
 func checkGuard(user *account.User, x int, y int, mid int64, img *image.RGBA) bool {
@@ -247,13 +250,23 @@ func writeAttention(user account.User, colum int, img *image.RGBA) {
 	}
 }
 
-func MkPic(user account.User) (bytes []byte) {
+func MkPic(user account.User) (byteArray []byte, err error) {
 	checkIcons()
 	img, colum, height := initPic(user)
 	pasteFace(user, img)
 	writeUserInfo(user, img, height)
 	writeAttention(user, colum, img)
-	bytes = img.Pix
 
+	var b bytes.Buffer
+	buf := bufio.NewWriter(&b)
+
+	err = png.Encode(buf, img)
+
+	if err != nil {
+		return
+	}
+
+	err = buf.Flush()
+	byteArray = b.Bytes()
 	return
 }

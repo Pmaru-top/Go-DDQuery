@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/FishZe/Go-DDQuery/api"
 	"io"
 	"log"
 	"os"
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/Pmaru-top/Go-DDQuery/api"
 )
 
 type User struct {
@@ -62,7 +63,7 @@ type UserGuard struct {
 	Dd    [][]int64 `json:"dd"`
 }
 
-func pathExists(path string) bool {
+func PathExists(path string) bool {
 	_, err := os.Stat(path)
 	if err != nil {
 		if os.IsExist(err) {
@@ -74,8 +75,8 @@ func pathExists(path string) bool {
 }
 
 func checkDataUpdate(fileName string, download func()) error {
-	if !pathExists(fileName) {
-		if !pathExists("data") {
+	if !PathExists(fileName) {
+		if !PathExists("data") {
 			err := os.Mkdir("data", 0777)
 			if err != nil {
 				log.Printf("os.Mkdir Error: %v", err)
