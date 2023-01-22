@@ -5,15 +5,23 @@ import (
 	"github.com/FishZe/Go-DDQuery/picMaker"
 )
 
-func DDQuery(Name string, Uid int64) (string, error) {
+func DDQuery(Name string, Uid int64) (route string, bytes []byte, err error) {
 	user := account.User{Name: Name, UID: Uid}
-	err := user.GetUser()
+	err = user.GetUser()
 	if err != nil {
-		return "", err
+		return
 	}
-	route, err := picMaker.MkPic(user)
+
+	bytes = picMaker.MkPic(user)
+	// route = path + "/" + strconv.FormatInt(user.UID, 10) + ".png"
+
+	return
+}
+
+func SavePic(route string, bytes []byte) (err error) {
+	err = picMaker.SavePic(route, bytes)
 	if err != nil {
-		return "", err
+		return
 	}
-	return route, nil
+	return
 }

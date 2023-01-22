@@ -1,23 +1,22 @@
 package picMaker
 
 import (
-	"bufio"
-	"github.com/FishZe/Go-DDQuery/account"
-	"github.com/FishZe/Go-DDQuery/api"
-	"github.com/golang/freetype"
-	"github.com/golang/freetype/truetype"
-	"github.com/nfnt/resize"
 	"image"
 	"image/color"
 	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
-	"image/png"
 	_ "image/png"
 	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/FishZe/Go-DDQuery/account"
+	"github.com/FishZe/Go-DDQuery/api"
+	"github.com/golang/freetype"
+	"github.com/golang/freetype/truetype"
+	"github.com/nfnt/resize"
 )
 
 var font *truetype.Font
@@ -89,32 +88,22 @@ func pasteFace(user account.User, img *image.RGBA) {
 	draw.Draw(img, image.Rect(50, 50, 250, 250), resizeFace, image.Point{}, draw.Src)
 }
 
-func savePic(user account.User, img *image.RGBA) (string, error) {
-	route := "data/out/" + strconv.FormatInt(user.UID, 10) + ".png"
+func SavePic(route string, bytes []byte) (err error) {
 	if !pathExists("data/out") {
-		err := os.Mkdir("data/out", 0777)
+		err = os.Mkdir("data/out", 0777)
 		if err != nil {
-			return "", err
+			return
 		}
 	}
-	out, err := os.Create(route)
-	defer func(out *os.File) {
-		err := out.Close()
-		if err != nil {
-			log.Printf("关闭文件失败: %v", err)
-		}
-	}(out)
-	b := bufio.NewWriter(out)
-	err = png.Encode(b, img)
+	file, err := os.Create(route)
+	defer file.Close()
 	if err != nil {
-		log.Printf("保存图片失败: %v", err)
-		return "", err
+		return
 	}
-	err = b.Flush()
-	if err != nil {
-		return "", err
-	}
-	return route, nil
+
+	_, err = file.Write(bytes)
+
+	return
 }
 
 func loadFont() *truetype.Font {
@@ -258,16 +247,13 @@ func writeAttention(user account.User, colum int, img *image.RGBA) {
 	}
 }
 
-func MkPic(user account.User) (string, error) {
+func MkPic(user account.User) (bytes []byte) {
 	checkIcons()
 	img, colum, height := initPic(user)
 	pasteFace(user, img)
 	writeUserInfo(user, img, height)
 	writeAttention(user, colum, img)
-	route, err := savePic(user, img)
-	if err != nil {
-		log.Printf("保存图片失败: %v", err)
-		return "", err
-	}
-	return route, nil
+	bytes = img.Pix
+
+	return
 }
